@@ -1,6 +1,7 @@
 "use client";
 import api from "@/lib/api";
-import { useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import toast from "react-hot-toast";
 
 interface Post {
@@ -11,66 +12,68 @@ interface Post {
 }
 
 export default function Home() {
-  const [posts, setPosts] = useState<Post[]>([]);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [author, setAuthor] = useState("");
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  const fetchPosts = async () => {
-    const res = await fetch("http://localhost:5000/api/posts");
-    const data = await res.json();
-    setPosts(data);
-  };
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchPosts();
-  }, []);
+  // Fetch posts
+  const { data: posts = [], isLoading } = useQuery({
+    queryKey: ["posts"],
+    queryFn: () => api.get("api/posts").then((r) => r.data),
+  });
 
-  const handleSudmbit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingId) {
-        await api.put(`api/posts/${editingId}`, {
-          title,
-          content,
-          author,
-        });
-
-        toast.success("Sửa bài thành công!");
-        setTitle("");
-        setContent("");
-        setAuthor("");
-        await fetchPosts();
-        setEditingId(null);
-      } else {
-        await api.post("api/posts", {
-          title,
-          content,
-          author,
-        });
-        toast.success("Đăng bài thành công!");
-        setTitle("");
-        setContent("");
-        setAuthor("");
-        await fetchPosts();
-      }
-    } catch (err: any) {
+  // Create post
+  const createMutation = useMutation({
+    mutationFn: (data) => api.post("api/posts", data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      toast.success("Đăng bài thành công!");
+      setTitle("");
+      setContent("");
+      setAuthor("");
+    },
+    onError: (err: any) => {
       toast.error(err.response?.data?.error || "Không thể kết nối server");
-      console.error(err);
-    }
-  };
+    },
+  });
 
-  const handleDelete = async (id: number) => {
-    try {
-      await api.delete(`/api/posts/${id}`);
+  // Update post
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }) => api.put(`api/posts/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      toast.success("Sửa bài thành công!");
+      setTitle("");
+      setContent("");
+      setAuthor("");
+      setEditingId(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.response?.data?.error || "Không thể cập nhật");
+    },
+  });
 
-      setPosts((prev) => prev.filter((p) => p.id !== id));
+  // Delete post
+  const deleteMutation = useMutation({
+    mutationFn: (id) => api.delete(`/api/posts/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["posts"] });
+      toast.success("Đã xóa bài viết");
+    },
+    onError: () => toast.error("Xóa thất bại!"),
+  });
 
-      toast.success("Đã xóa thành công");
-    } catch (error) {
-      toast.error("Xóa thất bại");
-      fetchPosts();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const data = { title, content, author };
+
+    if (editingId) {
+      updateMutation.mutate({ id: editingId, data });
+    } else {
+      createMutation.mutate(data);
     }
   };
 
@@ -81,9 +84,16 @@ export default function Home() {
     setEditingId(post.id);
   };
 
+  const handleCancel = () => {
+    setTitle("");
+    setContent("");
+    setAuthor("");
+    setEditingId(null);
+  };
+
   return (
     <div>
-      <form action="" onSubmit={handleSudmbit}>
+      <form action="" onSubmit={handleSubmit}>
         <input
           type="text"
           value={title}
@@ -102,23 +112,41 @@ export default function Home() {
           placeholder="Author"
           onChange={(e) => setAuthor(e.target.value)}
         />
-        <button type="submit">
+        <button
+          type="submit"
+          disabled={createMutation.isPending || updateMutation.isPending}
+        >
           {editingId ? "Cập nhật bài viết" : "Đăng bài"}
         </button>
+        {editingId && (
+          <button type="button" onClick={handleCancel}>
+            Hủy sửa
+          </button>
+        )}
       </form>
-      {posts.map((p) => (
-        <div key={p.id}>
-          <div>
-            <h3>{p.title}</h3>
-            <p>{p.content}</p>
-            <small>Tác giả: {p.author}</small>
+
+      {isLoading ? (
+        <p>Đang tải...</p>
+      ) : (
+        posts.map((p) => (
+          <div key={p.id}>
+            <div>
+              <h3>{p.title}</h3>
+              <p>{p.content}</p>
+              <small>Tác giả: {p.author}</small>
+            </div>
+            <div>
+              <button onClick={() => handleEdit(p)}>Sửa</button>
+              <button
+                onClick={() => deleteMutation.mutate(p.id)}
+                disabled={deleteMutation.isPending}
+              >
+                Xóa
+              </button>
+            </div>
           </div>
-          <div>
-            <button onClick={() => handleEdit(p)}>Sửa</button>
-            <button onClick={() => handleDelete(p.id)}>Xóa</button>
-          </div>
-        </div>
-      ))}
+        ))
+      )}
     </div>
   );
 }

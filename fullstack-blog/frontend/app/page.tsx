@@ -1,6 +1,7 @@
 "use client";
 import api from "@/lib/api";
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 
 interface Post {
   id: number;
@@ -33,13 +34,14 @@ export default function Home() {
         content,
         author,
       });
-
+      toast.success("Đăng bài thành công!");
       setTitle("");
       setContent("");
       setAuthor("");
       await fetchPosts();
     } catch (err: any) {
-      console.error(err.respone?.data?.error);
+      toast.error(err.response?.data?.error || "Không thể kết nối server");
+      console.error(err);
     }
   };
 

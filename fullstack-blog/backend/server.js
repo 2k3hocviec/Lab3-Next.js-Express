@@ -116,4 +116,92 @@ app.delete("/api/posts/:id", async (req, res) => {
   }
 });
 
+// ... existing code ...
+
+// GET - Lấy comments của một bài viết
+app.get("/api/posts/:id/comments", async (req, res) => {
+  try {
+    const postId = Number(req.params.id);
+    const posts = await readData();
+    const post = posts.find((p) => p.id === postId);
+
+    if (!post) {
+      return res.status(404).json({ error: "Không tìm thấy bài viết" });
+    }
+
+    res.json(post.comments || []);
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi đọc dữ liệu" });
+  }
+});
+
+// POST - Thêm comment mới
+app.post("/api/posts/:id/comments", async (req, res) => {
+  try {
+    const postId = Number(req.params.id);
+    const { author, content } = req.body;
+
+    if (!author || !content) {
+      return res.status(400).json({ error: "Thiếu author hoặc content" });
+    }
+
+    const posts = await readData();
+    const postIndex = posts.findIndex((p) => p.id === postId);
+
+    if (postIndex === -1) {
+      return res.status(404).json({ error: "Không tìm thấy bài viết" });
+    }
+
+    const newComment = {
+      id: Date.now(),
+      author,
+      content,
+    };
+
+    if (!posts[postIndex].comments) {
+      posts[postIndex].comments = [];
+    }
+
+    posts[postIndex].comments.push(newComment);
+    await writeData(posts);
+
+    res.status(201).json(newComment);
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi tạo comment" });
+  }
+});
+
+// DELETE - Xóa comment
+app.delete("/api/comments/:commentId", async (req, res) => {
+  try {
+    const commentId = Number(req.params.commentId);
+    const posts = await readData();
+    let postIndex = -1;
+    let commentIndex = -1;
+
+    for (let i = 0; i < posts.length; i++) {
+      const comments = posts[i].comments || [];
+      const cIndex = comments.findIndex((c) => c.id === commentId);
+      if (cIndex !== -1) {
+        postIndex = i;
+        commentIndex = cIndex;
+        break;
+      }
+    }
+
+    if (commentIndex === -1) {
+      return res.status(404).json({ error: "Không tìm thấy comment" });
+    }
+
+    posts[postIndex].comments.splice(commentIndex, 1);
+    await writeData(posts);
+
+    res.json({ message: "Đã xóa comment thành công" });
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi xóa comment" });
+  }
+});
+
+// ... existing code ...
+
 app.listen(5000, () => console.log("Backend chạy tại port :5000"));

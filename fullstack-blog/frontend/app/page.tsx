@@ -1,6 +1,7 @@
 "use client";
 import api from "@/lib/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useState } from "react";
 import toast from "react-hot-toast";
 
@@ -131,9 +132,12 @@ export default function Home() {
         posts.map((p) => (
           <div key={p.id}>
             <div>
-              <h3>{p.title}</h3>
+              <Link href={`/posts/${p.id}`}>
+                <h3>{p.title}</h3>
+              </Link>
               <p>{p.content}</p>
               <small>Tác giả: {p.author}</small>
+              <p>Số bình luận: {p.comments?.length || 0}</p>
             </div>
             <div>
               <button onClick={() => handleEdit(p)}>Sửa</button>

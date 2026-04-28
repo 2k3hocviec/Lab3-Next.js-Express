@@ -45,6 +45,19 @@ export default function Home() {
     }
   };
 
+  const handleDelete = async (id: number) => {
+    try {
+      await api.delete(`/api/posts/${id}`);
+
+      setPosts((prev) => prev.filter((p) => p.id !== id));
+
+      toast.success("Đã xóa thành công");
+    } catch (error) {
+      toast.error("Xóa thất bại");
+      fetchPosts();
+    }
+  };
+
   return (
     <div>
       <form action="" onSubmit={handleSudmbit}>
@@ -70,9 +83,14 @@ export default function Home() {
       </form>
       {posts.map((p) => (
         <div key={p.id}>
-          <h3>{p.title}</h3>
-          <p>{p.content}</p>
-          <small>Tác giả: {p.author}</small>
+          <div>
+            <h3>{p.title}</h3>
+            <p>{p.content}</p>
+            <small>Tác giả: {p.author}</small>
+          </div>
+          <div>
+            <button onClick={() => handleDelete(p.id)}>Xóa</button>
+          </div>
         </div>
       ))}
     </div>

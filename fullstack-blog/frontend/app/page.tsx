@@ -15,6 +15,7 @@ export default function Home() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [author, setAuthor] = useState("");
+  const [editingId, setEditingId] = useState<number | null>(null);
 
   const fetchPosts = async () => {
     const res = await fetch("http://localhost:5000/api/posts");
@@ -29,16 +30,31 @@ export default function Home() {
   const handleSudmbit = async (e) => {
     e.preventDefault();
     try {
-      await api.post("api/posts", {
-        title,
-        content,
-        author,
-      });
-      toast.success("Đăng bài thành công!");
-      setTitle("");
-      setContent("");
-      setAuthor("");
-      await fetchPosts();
+      if (editingId) {
+        await api.put(`api/posts/${editingId}`, {
+          title,
+          content,
+          author,
+        });
+
+        toast.success("Sửa bài thành công!");
+        setTitle("");
+        setContent("");
+        setAuthor("");
+        await fetchPosts();
+        setEditingId(null);
+      } else {
+        await api.post("api/posts", {
+          title,
+          content,
+          author,
+        });
+        toast.success("Đăng bài thành công!");
+        setTitle("");
+        setContent("");
+        setAuthor("");
+        await fetchPosts();
+      }
     } catch (err: any) {
       toast.error(err.response?.data?.error || "Không thể kết nối server");
       console.error(err);
@@ -56,6 +72,13 @@ export default function Home() {
       toast.error("Xóa thất bại");
       fetchPosts();
     }
+  };
+
+  const handleEdit = (post: Post) => {
+    setTitle(post.title);
+    setContent(post.content);
+    setAuthor(post.author);
+    setEditingId(post.id);
   };
 
   return (
@@ -79,7 +102,9 @@ export default function Home() {
           placeholder="Author"
           onChange={(e) => setAuthor(e.target.value)}
         />
-        <button type="submit">Đăng bài</button>
+        <button type="submit">
+          {editingId ? "Cập nhật bài viết" : "Đăng bài"}
+        </button>
       </form>
       {posts.map((p) => (
         <div key={p.id}>
@@ -89,6 +114,7 @@ export default function Home() {
             <small>Tác giả: {p.author}</small>
           </div>
           <div>
+            <button onClick={() => handleEdit(p)}>Sửa</button>
             <button onClick={() => handleDelete(p.id)}>Xóa</button>
           </div>
         </div>

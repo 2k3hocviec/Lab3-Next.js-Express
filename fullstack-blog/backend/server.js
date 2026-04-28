@@ -55,6 +55,31 @@ app.post("/api/posts", (req, res) => {
   res.status(201).json(newPost);
 });
 
+app.put("/api/posts/:id", (req, res) => {
+  console.log("PUT /api/posts/:id - req.body:", req.body);
+  const id = Number(req.params.id);
+  const { title, content, author } = req.body;
+
+  if (!title || !content || !author) {
+    return res.status(400).json({ error: "Thiếu dữ liệu" });
+  }
+
+  const index = posts.findIndex((p) => p.id === id);
+  if (index === -1) {
+    return res.status(404).json({ error: "Không tìm thấy đối tượng" });
+  }
+
+  posts[index] = {
+    ...posts[index],
+    title,
+    content,
+    author,
+    updatedAt: new Date().toISOString(),
+  };
+
+  res.json(posts[index]);
+});
+
 app.delete("/api/posts/:id", (req, res) => {
   const id = Number(req.params.id);
   const index = posts.findIndex((p) => p.id === id);
@@ -67,6 +92,18 @@ app.delete("/api/posts/:id", (req, res) => {
   res.json({
     message: "Đã xóa thành công",
   });
+});
+
+app.put("api/posts/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const index = posts.findIndex((p) => p.id === id);
+
+  if (index === -1) {
+    return res.status(404).json({ error: "Không tìm thấy" });
+  }
+
+  posts[index] = { ...posts[index], ...req.body };
+  res.json(posts[index]);
 });
 
 app.listen(5000, () => console.log("Backend chạy tại port :5000"));

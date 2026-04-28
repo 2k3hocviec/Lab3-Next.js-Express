@@ -1,4 +1,5 @@
 "use client";
+import api from "@/lib/api";
 import { useEffect, useState } from "react";
 
 interface Post {
@@ -24,23 +25,21 @@ export default function Home() {
     fetchPosts();
   }, []);
 
-  const handleSudmbit = async (e: { preventDefault: () => void }) => {
+  const handleSudmbit = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:5000/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, content, author }),
+      await api.post("api/posts", {
+        title,
+        content,
+        author,
       });
 
-      if (res.ok) {
-        setTitle("");
-        setContent("");
-        setAuthor("");
-        fetchPosts();
-      }
+      setTitle("");
+      setContent("");
+      setAuthor("");
+      await fetchPosts();
     } catch (err: any) {
-      console.error("Lỗi:", err);
+      console.error(err.respone?.data?.error);
     }
   };
 

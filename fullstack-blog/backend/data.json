@@ -1,0 +1,14 @@
+[
+  {
+    "id": 2,
+    "title": "Hướng dẫn NextJS",
+    "content": "Nội dung bài 2 - NextJS là một framework React mạnh mẽ",
+    "author": "Admin"
+  },
+  {
+    "id": 3,
+    "title": "Express.js cơ bản",
+    "content": "Nội dung bài 3 - Express.js giúp tạo backend dễ dàng",
+    "author": "Coder"
+  }
+]

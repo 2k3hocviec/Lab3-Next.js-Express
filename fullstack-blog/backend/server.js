@@ -1,109 +1,119 @@
 const express = require("express");
 const cors = require("cors");
 const app = express();
+const fs = require("fs").promises;
+const PATH = "./data.json";
+
 app.use(
   cors({
-    origin: "http://localhost:3000", // chỉ cho phép NextJS
+    origin: "http://localhost:3000",
     methods: ["GET", "POST", "PUT", "DELETE"],
     allowedHeaders: ["Content-Type"],
   }),
 );
 app.use(express.json());
 
-// Middleware log tổng quát
 app.use((req, _, next) => {
   console.log(req.method, req.url);
   next();
 });
 
-let posts = [
-  {
-    id: 1,
-    title: "Bài viết đầu tiên",
-    content: "Nội dung bài 1",
-    author: "Admin",
-  },
-  {
-    id: 2,
-    title: "Hướng dẫn NextJS",
-    content: "Nội dung bài 2",
-    author: "Admin",
-  },
-];
+async function readData() {
+  const raw = await fs.readFile(PATH, "utf-8");
+  return JSON.parse(raw);
+}
 
-app.get("/api/posts", (req, res) => {
-  console.log(req.body);
-  res.json(posts);
+async function writeData(data) {
+  await fs.writeFile(PATH, JSON.stringify(data, null, 2));
+}
+
+// GET - Lấy tất cả bài viết
+app.get("/api/posts", async (req, res) => {
+  try {
+    const posts = await readData();
+    res.json(posts);
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi đọc dữ liệu" });
+  }
 });
 
-app.post("/api/posts", (req, res) => {
-  console.log(req.body);
-  const { title, content, author } = req.body;
-  if (!title || !content || !author) {
-    return res.status(400).json({ error: "Thiếu dữ liệu" });
+// POST - Tạo bài viết mới
+app.post("/api/posts", async (req, res) => {
+  try {
+    console.log("POST /api/posts - req.body:", req.body);
+    const { title, content, author } = req.body;
+
+    if (!title || !content || !author) {
+      return res.status(400).json({ error: "Thiếu dữ liệu" });
+    }
+
+    const posts = await readData();
+    const newPost = {
+      id: Date.now(),
+      title,
+      content,
+      author,
+      createAt: new Date().toISOString(),
+    };
+
+    posts.push(newPost);
+    await writeData(posts);
+    res.status(201).json(newPost);
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi tạo bài viết" });
   }
-
-  const newPost = {
-    id: Date.now(),
-    title,
-    content,
-    author,
-    createAt: new Date().toISOString(),
-  };
-
-  posts.push(newPost);
-  res.status(201).json(newPost);
 });
 
-app.put("/api/posts/:id", (req, res) => {
-  console.log("PUT /api/posts/:id - req.body:", req.body);
-  const id = Number(req.params.id);
-  const { title, content, author } = req.body;
+// PUT - Sửa bài viết
+app.put("/api/posts/:id", async (req, res) => {
+  try {
+    console.log("PUT /api/posts/:id - req.body:", req.body);
+    const id = Number(req.params.id);
+    const { title, content, author } = req.body;
 
-  if (!title || !content || !author) {
-    return res.status(400).json({ error: "Thiếu dữ liệu" });
+    if (!title || !content || !author) {
+      return res.status(400).json({ error: "Thiếu dữ liệu" });
+    }
+
+    const posts = await readData();
+    const index = posts.findIndex((p) => p.id === id);
+
+    if (index === -1) {
+      return res.status(404).json({ error: "Không tìm thấy đối tượng" });
+    }
+
+    posts[index] = {
+      ...posts[index],
+      title,
+      content,
+      author,
+      updatedAt: new Date().toISOString(),
+    };
+
+    await writeData(posts);
+    res.json(posts[index]);
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi sửa bài viết" });
   }
-
-  const index = posts.findIndex((p) => p.id === id);
-  if (index === -1) {
-    return res.status(404).json({ error: "Không tìm thấy đối tượng" });
-  }
-
-  posts[index] = {
-    ...posts[index],
-    title,
-    content,
-    author,
-    updatedAt: new Date().toISOString(),
-  };
-
-  res.json(posts[index]);
 });
 
-app.delete("/api/posts/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = posts.findIndex((p) => p.id === id);
+// DELETE - Xóa bài viết
+app.delete("/api/posts/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const posts = await readData();
+    const index = posts.findIndex((p) => p.id === id);
 
-  if (index === -1) {
-    return res.status(404).json({ error: "Không tìm thấy đối tượng" });
+    if (index === -1) {
+      return res.status(404).json({ error: "Không tìm thấy đối tượng" });
+    }
+
+    posts.splice(index, 1);
+    await writeData(posts);
+    res.json({ message: "Đã xóa thành công" });
+  } catch (err) {
+    res.status(500).json({ error: "Lỗi xóa bài viết" });
   }
-
-  posts.splice(index, 1);
-  res.json({
-    message: "Đã xóa thành công",
-  });
-});
-
-app.put("api/posts/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const index = posts.findIndex((p) => p.id === id);
-
-  if (index === -1) {
-    return res.status(404).json({ error: "Không tìm thấy" });
-  }
-
-  posts[index] = { ...posts[index], ...req.body };
-  res.json(posts[index]);
 });
 
 app.listen(5000, () => console.log("Backend chạy tại port :5000"));
